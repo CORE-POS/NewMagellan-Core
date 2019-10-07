@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <Deterministic>False</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HidSharp" Version="2.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="USB-Win32.cs" Condition=" '$(OS)' == 'Unix' " />
+    <Compile Remove="USB-Posix.cs" Condition=" '$(OS)' != 'Unix' " />
+  </ItemGroup>
+
+</Project>

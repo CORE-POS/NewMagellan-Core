@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DelegateForm\DelegateForm.csproj" />
+    <ProjectReference Include="..\Discover\Discover.csproj" />
+    <ProjectReference Include="..\SPH\SPH.csproj" />
+    <ProjectReference Include="..\UDPMsgBox\UDPMsgBox.csproj" />
+    <ProjectReference Include="..\MySqlPipe\MySqlPipe.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.Data" Version="8.0.15" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+    <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <Deterministic>False</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>pos</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>NEWTONSOFT_JSON;CORE_RABBIT;CORE_MYSQL</DefineConstants>
+  </PropertyGroup>
+
+</Project>

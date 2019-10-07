@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <Deterministic>False</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Parallel-Win32.cs" Condition=" '$(OS)' == 'Unix' " />
+    <Compile Remove="Parallel-Posix.cs" Condition=" '$(OS)' != 'Unix' " />
+  </ItemGroup>
+
+</Project>
