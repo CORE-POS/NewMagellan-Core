@@ -30,6 +30,7 @@ using System.Drawing;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using CustomForms;
 using BitmapBPP;
 using DSIEMVXLib;
@@ -40,6 +41,77 @@ using ComPort;
 using FHttp;
 
 namespace SPH {
+
+public interface IMessage
+{
+    string type();
+    string body();
+    string from();
+}
+
+public class SimpleMessage : IMessage
+{
+    private string msg = "";
+    public SimpleMessage(string s) {
+        this.msg = s;
+    }
+
+    public string type() {
+        return "simple";
+    }
+
+    public string body() {
+        return this.msg;
+    }
+
+    public string from() {
+        return "udp";
+    }
+}
+
+public class EMVMessage : IMessage
+{
+    private string msg = "";
+    private string f = "";
+    public EMVMessage(string s, string f) {
+        this.msg = s;
+        this.f = f;
+    }
+
+    public string type() {
+        return "emv";
+    }
+
+    public string body() {
+        return this.msg;
+    }
+
+    public string from() {
+        return this.f;
+    }
+}
+
+public class PDCMessage : IMessage
+{
+    private string msg = "";
+    private string f = "";
+    public PDCMessage(string s, string f) {
+        this.msg = s;
+        this.f = f;
+    }
+
+    public string type() {
+        return "pdc";
+    }
+
+    public string body() {
+        return this.msg;
+    }
+
+    public string from() {
+        return this.f;
+    }
+}
 
 public class SPH_Datacap_EMVX : SerialPortHandler 
 {
@@ -61,6 +133,9 @@ public class SPH_Datacap_EMVX : SerialPortHandler
     private bool emv_active;
     private Object emvLock = new Object();
     private string terminalID = "";
+    private BlockingCollection<IMessage> work_queue = null;
+    private BlockingCollection<string> http_mailbox = null;
+    private int device_thread_id;
 
     public SPH_Datacap_EMVX(string p) : base(p)
     { 
@@ -82,6 +157,9 @@ public class SPH_Datacap_EMVX : SerialPortHandler
             rba = new RBA_Stub("COM"+com_port);
             rba.SetEMV(RbaButtons.EMV);
         }
+
+        this.work_queue = new BlockingCollection<IMessage>();
+        this.http_mailbox = new BlockingCollection<string>();
     }
 
     /**
@@ -137,6 +215,33 @@ public class SPH_Datacap_EMVX : SerialPortHandler
     }
 
     /**
+      Confine all interactions with ActiveX controls to this thread
+      Other threads access this thread by adding IMessages to the work_queue
+      and should monitor the http_mailbox for responses
+    */
+    public void DeviceLoop()
+    {
+        Console.WriteLine("Starting device thread: " + Thread.CurrentThread.ManagedThreadId);
+        this.ReInitDevice();
+        while (true) {
+            var msg = this.work_queue.Take();
+            if (msg.type() == "simple") {
+                this.ProcessUdpMessage(msg.body());
+            } else if (msg.type() == "emv") {
+                string result = emv_ax_control.ProcessTransaction(msg.body());
+                if (msg.from() == "http") {
+                    this.http_mailbox.Add(result);
+                }
+            } else if (msg.type() == "pdc") {
+                string result = pdc_ax_control.ProcessTransaction(msg.body(), 1, null, null);
+                if (msg.from() == "http") {
+                    this.http_mailbox.Add(result);
+                }
+            }
+        }
+    }
+
+    /**
       Driver listens over TCP for incoming HTTP data. Driver
       is providing a web-service style endpoint so POS behavior
       does not have to change. Rather than POSTing information to
@@ -147,7 +252,10 @@ public class SPH_Datacap_EMVX : SerialPortHandler
     */
     public override void Read()
     { 
-        ReInitDevice();
+        var deviceThread = new Thread(new ThreadStart(this.DeviceLoop));
+        this.device_thread_id = deviceThread.ManagedThreadId;
+        deviceThread.Start();
+        Console.WriteLine("Set device thread: " + this.device_thread_id);
         FHttp.Server.setPort(LISTEN_PORT);
         while (SPH_Running) {
             string result = "";
@@ -233,6 +341,11 @@ public class SPH_Datacap_EMVX : SerialPortHandler
     }
 
     public override void HandleMsg(string msg)
+    {
+        this.work_queue.Add(new SimpleMessage(msg));
+    }
+
+    private void ProcessUdpMessage(string msg)
     { 
         // optional predicate for "termSig" message
         // predicate string is displayed on sig capture screen
@@ -454,7 +567,18 @@ public class SPH_Datacap_EMVX : SerialPortHandler
                 }
 
                 request.SelectSingleNode("TStream/Transaction/HostOrIP").InnerXml = IP;
-                result = emv_ax_control.ProcessTransaction(request.OuterXml);
+                /*
+                   To avoid a big refactor check thread IDs to see if we're already
+                   in the DeviceLoop thread. Some messages processed in that thread
+                   might trigger additional calls to ProcessEMV or ProcessPDC and 
+                   recursive adding jobs to the work queue will deadlock
+                */
+                if (Thread.CurrentThread.ManagedThreadId != this.device_thread_id) {
+                    this.work_queue.Add(new EMVMessage(request.OuterXml, "http"));
+                    result = this.http_mailbox.Take();
+                } else {
+                    result = emv_ax_control.ProcessTransaction(request.OuterXml);
+                }
 
                 lock(emvLock) {
                     emv_active = false;
@@ -525,7 +649,18 @@ public class SPH_Datacap_EMVX : SerialPortHandler
                 xml = xml.Replace("{{TerminalID}}", this.terminalID);
             }
 
-            ret = pdc_ax_control.ProcessTransaction(xml, 1, null, null);
+            /*
+               To avoid a big refactor check thread IDs to see if we're already
+               in the DeviceLoop thread. Some messages processed in that thread
+               might trigger additional calls to ProcessEMV or ProcessPDC and 
+               recursive adding jobs to the work queue will deadlock
+            */
+            if (Thread.CurrentThread.ManagedThreadId != this.device_thread_id) {
+                this.work_queue.Add(new PDCMessage(xml, "http"));
+                ret = this.http_mailbox.Take();
+            } else {
+                ret = pdc_ax_control.ProcessTransaction(xml, 1, null, null);
+            }
             if (enable_xml_log) {
                 using (StreamWriter sw = new StreamWriter(xml_log, true)) {
                     sw.WriteLine(DateTime.Now.ToString() + " (send pdc): " + xml);

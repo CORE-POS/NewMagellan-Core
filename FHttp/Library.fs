@@ -27,11 +27,12 @@ module Server =
         match req.HasEntityBody with
         | false -> { response=cxt.Response; body="" }
         | true ->
-            let reader = new StreamReader(req.InputStream, req.ContentEncoding)
+            use reader = new StreamReader(req.InputStream, req.ContentEncoding)
             let body = reader.ReadToEnd()
             { response=cxt.Response; body=body }
 
     let respond (resp:HttpListenerResponse) (msg:string) =
+        resp.Headers.Add("Access-Control-Allow-Origin", "*");
         let buf = System.Text.Encoding.UTF8.GetBytes(msg)
         resp.ContentLength64 <- int64(buf.Length)
         resp.OutputStream.Write(buf, 0, buf.Length)
