@@ -89,7 +89,7 @@ public class Magellan : DelegateForm
     {
         var d = new Discover.Discover();
         var modules = d.GetSubClasses("SPH.SerialPortHandler");
-        var my_location = AppDomain.CurrentDomain.BaseDirectory;
+        var my_location = this.GetMyPath();
         var sep = Path.DirectorySeparatorChar;
         Magellan.log_path = my_location + sep + ".." + sep + ".." + sep + ".." + sep + "log" + sep + "debug_lane.log";
 
@@ -234,7 +234,7 @@ public class Magellan : DelegateForm
             } else {
                 lock (msgLock) {
                     string filename = System.Guid.NewGuid().ToString();
-                    string my_location = AppDomain.CurrentDomain.BaseDirectory;
+                    string my_location = this.GetMyPath();
                     char sep = Path.DirectorySeparatorChar;
                     /**
                       Depending on msg rate I may replace "1" with a bigger value
@@ -298,7 +298,7 @@ public class Magellan : DelegateForm
     #if NEWTONSOFT_JSON
     private List<MagellanConfigPair> JsonConfig()
     {
-        string my_location = AppDomain.CurrentDomain.BaseDirectory;
+        string my_location = this.GetMyPath();
         char sep = Path.DirectorySeparatorChar;
         string ini_file = my_location + sep + ".." + sep + ".." + sep + ".." + sep + "ini.json";
         List<MagellanConfigPair> conf = new List<MagellanConfigPair>();
@@ -382,7 +382,7 @@ public class Magellan : DelegateForm
         }
         #endif
 
-        string my_location = AppDomain.CurrentDomain.BaseDirectory;
+        string my_location = this.GetMyPath();
         char sep = Path.DirectorySeparatorChar;
         if (!File.Exists(my_location + sep + "ports.conf")) {
             throw new Exception("No configuration found!");
@@ -411,6 +411,19 @@ public class Magellan : DelegateForm
         }    
 
         return conf;
+    }
+
+    private string GetMyPath()
+    {
+        string my_location = AppDomain.CurrentDomain.BaseDirectory;
+        try {
+            string env_location = Environment.GetEnvironmentVariable("NewMagellanRoot");
+            if (Directory.Exists(env_location)) {
+                my_location = env_location;
+            }
+        } catch (Exception) {}
+
+        return my_location;
     }
 
     // log unhandled exception before app dies
