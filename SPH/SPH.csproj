@@ -21,6 +21,12 @@
     <Reference Include="AxDSIEMVXLib" Condition=" Exists('DSIEMVXLib.dll') And Exists('AxDSIEMVXLib.dll') ">
       <HintPath>AxDSIEMVXLib.dll</HintPath>
     </Reference>
+    <Reference Include="DSIEMVCLIENTXLib" Condition=" Exists('DSIEMVCLIENTXLib.dll') And Exists('AxDSIEMVCLIENTXLib.dll') ">
+      <HintPath>DSIEMVCLIENTXLib.dll</HintPath>
+    </Reference>
+    <Reference Include="AxDSIEMVCLIENTXLib" Condition=" Exists('DSIEMVCLIENTXLib.dll') And Exists('AxDSIEMVCLIENTXLib.dll') ">
+      <HintPath>AxDSIEMVCLIENTXLib.dll</HintPath>
+    </Reference>
     <Reference Include="DSIPDCXLib" Condition=" Exists('DSIPDCXLib.dll') And Exists('AxDSIPDCXLib.dll') ">
       <HintPath>DSIPDCXLib.dll</HintPath>
     </Reference>
@@ -30,12 +36,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="SPH_Datacap_EMVX.cs" Condition=" !Exists('DSIEMVXLib.dll') Or !Exists('AxDSIEMVXLib.dll') " />
+    <Compile Remove="SPH_Datacap_EMVX.cs" Condition=" !Exists('DSIEMVXLib.dll') And !Exists('DSIEMVCLIENTXLib.dll') " />
     <Compile Remove="SPH_Datacap_PDCX.cs" Condition=" !Exists('DSIPDCXLib.dll') Or !Exists('AxDSIPDCXLib.dll') " />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(OS)' == 'Unix' ">
     <DefineConstants>MONO</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" !Exists('DSIEMVXLib.dll') And '$(OS)' == 'Unix' ">
+    <DefineConstants>ALT_EMV_AX;MONO</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" !Exists('DSIEMVXLib.dll') And '$(OS)' != 'Unix' ">
+    <DefineConstants>ALT_EMV_AX</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>

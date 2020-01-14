@@ -33,8 +33,13 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using CustomForms;
 using BitmapBPP;
+#if ALT_EMV_AX
+using DSIEMVCLIENTXLib;
+using AxDSIEMVCLIENTXLib;
+# else
 using DSIEMVXLib;
 using AxDSIEMVXLib;
+#endif
 using DSIPDCXLib;
 using AxDSIPDCXLib;
 using ComPort;
@@ -115,7 +120,11 @@ public class PDCMessage : IMessage
 
 public class SPH_Datacap_EMVX : SerialPortHandler 
 {
+#if ALT_EMV_AX
+    private DSIEMVClientX emv_ax_control = null;
+#else
     private DsiEMVX emv_ax_control = null;
+#endif
     private DsiPDCX pdc_ax_control = null;
     private string device_identifier = null;
     private string com_port = "0";
@@ -199,7 +208,11 @@ public class SPH_Datacap_EMVX : SerialPortHandler
         */
 
         if (emv_ax_control == null) {
+# if ALT_EMV_AX
+            emv_ax_control = new DSIEMVClientX();
+#else
             emv_ax_control = new DsiEMVX();
+#endif
         }
         FlaggedReset();
 
